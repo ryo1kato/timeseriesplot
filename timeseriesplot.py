@@ -203,19 +203,19 @@ def load_csv(infile, colname_prefix='', colnames=None):
     ## try to determine column names and number of columns
     datalines = fileio.readlines()
     try:
-        line1_col2 = datalines[0].rstrip('\n').split(',')[1]
+        line1_cols = datalines[0].rstrip('\n').split(',')
     except IndexError:
         raise TSPlotException("Empty or broken input")
 
     nrCol = 2 # this is minimum number of cols we need
-    if not re_number.match(line1_col2):
-        datalines = datalines[1:]
-        if not colnames:
-            colnames = datalines
-            nrCol = len( colnames )
-    else:
+    if re_number.match(line1_cols[1]):
         nrCol = len( datalines[0].split(',') )
-        colnames = [ "col-%d"%i for i in xrange(1, nrCol) ]
+        colnames = [ colname_prefix + "col-%d"%i for i in xrange(1, nrCol) ]
+    else:
+        if not colnames:
+            colnames = line1_cols[1:] # the first column is time (X-Axis)
+        nrCol = len( colnames )
+        datalines = datalines[1:]
 
     if colname_prefix:
         colnames = [ colname_prefix + name for name in colnames ]
@@ -313,13 +313,13 @@ def main(args):
         print right_files
         for f in left_files:
             if len(left_files) > 1:
-                prefix = os.path.basename(f)
+                prefix = os.path.basename(f) + ':'
                 left_dataset.extend(  load_csv(f, colname_prefix=prefix)  )
             else:
                 left_dataset.extend(  load_csv(f)  )
         for f in right_files:
             if len(right_files) > 1:
-                prefix = os.path.basename(f)
+                prefix = os.path.basename(f) + ':'
                 right_dataset.extend(  load_csv(f, colname_prefix=prefix)  )
             else:
                 right_dataset.extend(  load_csv(f)  )
