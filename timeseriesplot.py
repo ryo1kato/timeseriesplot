@@ -347,6 +347,7 @@ def main(args):
                   "lscale", "rscale", "lmin", "lmax",  "rmin",  "rmax"] }
 
     timeseriesplot(left_dataset, right_dataset,
+                output=opts.output,
                 llabel=left_label, rlabel=right_label, **kwarg)
 
 
