@@ -239,7 +239,7 @@ def load_csv(infile, colname_prefix='', colnames=None):
 ##
 
 
-def myoptparse(args):
+def _optparse(args):
     from textwrap import dedent
     import optparse
 
@@ -291,10 +291,11 @@ def myoptparse(args):
 
 
 def main(args):
-    (opts, files) = myoptparse(args)
+    (opts, files) = _optparse(args)
 
     left_dataset = []
     left_label = '(No name)'
+    right_files = []
     right_dataset = []
     right_label = '(No name)'
 
@@ -309,8 +310,6 @@ def main(args):
         else:
             left_files = files
             right_files = []
-        print left_files
-        print right_files
         for f in left_files:
             if len(left_files) > 1:
                 prefix = os.path.basename(f) + ':'
