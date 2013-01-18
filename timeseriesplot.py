@@ -5,6 +5,11 @@
 #   - Only accepts CSV data when used from commandline.
 #   - See '--help' for Useage from command line.
 #
+# TODO:
+#   * moving average
+#   * Minor tick labels overlap major ones when using AutoDateMinorLocator
+#   * Redraws ticks on resize of plot window for show()
+#   * Nicer default window size for show()
 
 VERSION = (0, 1)
 USAGE = """%prog [OPTIONS] CSV_FILE[...] [/ CSV_FILE[...]]
@@ -26,8 +31,8 @@ USAGE = """%prog [OPTIONS] CSV_FILE[...] [/ CSV_FILE[...]]
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import dates, ticker
-from datetime import datetime
+from matplotlib import dates, ticker, mlab
+from datetime import datetime, date, timedelta
 from itertools import cycle
 import dateutil.parser
 import re
@@ -62,12 +67,21 @@ class TimeSeriesData():
 
     def append(self, data, datecol=0, valcol=1):
         self._dates.append( self._to_datetime(data[datecol]) )
-        self._values.append( data[valcol] )
+        self._values.append( float(data[valcol]) )
 
     def dates(self): return self._dates
     def values(self): return self._values
     def name(self): return self._name
-
+    def sort_by_date(self):
+        """Need this for line graphs or
+        something like moving average or other aggregating functions
+        that data data points need to be sorted in time-based order
+        """
+        if len(self._values) != 0:
+            sorted_pair = sorted(zip(self._dates, self._values), key=lambda x: x[0])
+            #int((x[0]-y[0]).total_seconds()) )
+            self._dates = zip(*sorted_pair)[0]
+            self._values = zip(*sorted_pair)[1]
 
 
 def dummy_data(name, time_interval=300, initval=1000, data_diff_max=100, days=7):
@@ -90,20 +104,45 @@ def dummy_data(name, time_interval=300, initval=1000, data_diff_max=100, days=7)
 def timeseriesplot(left, right=None,
                    llabel='', lstyle='', lscale=1, lmin=None, lmax=None,
                    rlabel='', rstyle='-', rscale=1, rmin=None, rmax=None,
-                   output=None, days=8):
-    colors=cycle(['b', 'g', 'r', 'c', 'm', 'y', 'k'])
+                   output=None, moving_average=0, moving_average_style='-'):
+    """moving_average: if 0, disable. N>0 indicates average over N data points.
+    negative N<0 value indicates moving average over X data points where
+    X = len(dataset)/-N. For example, if moving_average=-20, average is taken for
+    1/20 = 5% of data points.
+    """
+    colors=cycle(['b', 'r', 'c', 'm', 'g', 'y', 'k'])
     markers=cycle(['.', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p',
                    '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_'])
 
-    def dateplot_data(axis, dataset, linestyle='', marker='AUTO'):
+    def dateplot_data(axis, dataset, linestyle='', marker='AUTO',
+                      movavg=0,
+                      movavg_style='-'):
         mymarker = marker
         if not isinstance(dataset,list):
             dataset = [dataset]
         for d in dataset:
-            if marker == 'AUTO':
-                mymarker = next(markers)
+            if marker == 'AUTO': mymarker = next(markers)
+            if linestyle not in ['', ' ']:
+                # if data-points are connected, need to sort by date
+                # (otherwise, line can go left and right)
+                d.sort_by_date()
             axis.plot_date( d.dates(), d.values(), label=d.name(),
                             linestyle=linestyle, marker=mymarker, color=next(colors))
+            if movavg != 0 and len(d.values()) > 2:
+                if movavg >= 1: # just a number of data points
+                    weight = int(movavg) 
+                elif movavg > 0: # ratio; 0.05 means 5%
+                    weight = int(len( d.values() ) * movavg)
+                else: # if it's negative, use 1/weight of data points: -20 means 1/20 = 5%
+                    weight = int(len( d.values() ) / abs(movavg))
+                if weight < 2: weight = 2
+                d.sort_by_date()
+                ma = mlab.movavg( d.values(), weight )
+                label = "%s (moving avg for %d datapoints)" % (d.name(),weight)
+                axis.plot_date( d.dates()[weight-1:], ma, label=label,
+                            linestyle=movavg_style,
+                            marker=' ', color=next(colors))
+
 
     def scale_axis(scale, minval, maxval):
         ## Scale with middle of min and max as pivot
@@ -118,7 +157,8 @@ def timeseriesplot(left, right=None,
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
 
-    dateplot_data(ax1, left, linestyle=lstyle)
+    dateplot_data(ax1, left, linestyle=lstyle,
+                  movavg=moving_average, movavg_style=moving_average_style)
 
     if right:
         # Default right axis is plot with solid line without marker.
@@ -134,18 +174,59 @@ def timeseriesplot(left, right=None,
         ax2.legend(loc=1) # upper right
         ax2.tick_params(axis='both', which='both', labelsize=9)
 
-    # Grid/Locator settings. These must be after *ANY* axis.plot_date() call; otherwise
+    # Grid/Locator settings. These must be after *ALL* axis.plot_date() call; otherwise
     # ticks/grid configs are overwritten.
     ax1.set_ylabel(llabel)
     ax1.yaxis.grid(True, color='#8899dd')
-    ax1.xaxis.set_major_locator( dates.DayLocator() )
-    ax1.xaxis.set_major_formatter( dates.DateFormatter('%Y-%m-%d(%a)') )
+
+    majloc = dates.AutoDateLocator( interval_multiples=True ) 
+    majfmt = dates.AutoDateFormatter( majloc )
+    majfmt.scaled = {
+       365.0    : '%Y',
+       30.      : '%b %Y',
+       1.0      : '%Y-%m-%d(%a)',
+       1./24.   : '%d(%a) %H:%M',
+       1./1440. : '%H:%M:%S',
+       }
+
+    class AutoDateMinorLocator(dates.AutoDateLocator):
+        def __init__(self, *args, **kwargs):
+            kwargs.setdefault('minticks', 3)
+            kwargs.setdefault('maxticks', 7)
+            dates.AutoDateLocator.__init__(self, *args, **kwargs)
+        def viewlim_to_dt(self):
+            major_ticks = self.axis.get_majorticklocs()
+            # to deal with non-uniform interval of major_ticks...
+            #like days on month: [1,8,22,29,1,8,...]
+            max_major_ticks_interval = max([abs(x2-x1) for (x1, x2) in zip(major_ticks[:-1],major_ticks[1:])])
+            return ( dates.num2date(major_ticks[0], self.tz), 
+                     dates.num2date(major_ticks[0]+max_major_ticks_interval, self.tz)   )
+        def datalim_to_dt(self):
+            self.get_view_interval()
+            return self.get_view_interval()
+
+    minloc = AutoDateMinorLocator( interval_multiples=True ) 
+    #minfmt = dates.AutoDateFormatter( minloc )
+    #minfmt.scaled = {
+    #   365.0    : '%Y',
+    #   30.      : '%b %Y',
+    #   1.0      : '%d(%a)',
+    #   1./24.   : '%H:%M',
+    #   1./1440. : "%H:%M:%S",
+    #   }
+
+    ax1.xaxis.set_major_locator( majloc )
+    ax1.xaxis.set_major_formatter( majfmt )
+    ax1.xaxis.set_minor_locator( minloc )
+    #ax1.xaxis.set_minor_formatter( minfmt )
+
+
     ax1.xaxis.grid(True, 'major', linewidth=1, linestyle='-',  color='#dd8899')
-    ax1.xaxis.set_minor_locator( dates.HourLocator([3,6,9,12,15,18,21]) )
-    ax1.xaxis.set_minor_formatter( dates.DateFormatter('%H:%M') )
     ax1.xaxis.grid(True, 'minor', color='#666666')
     ax1.tick_params(axis='both', which='both', labelsize=9)
-    ax1.legend(loc=2, numpoints=1) # upper left, must be after ax1.plot_date()
+
+    # X legend
+    ax1.legend(loc=2, numpoints=1) # on upper left, must be after ax1.plot_date()
     for tl in ax1.xaxis.get_majorticklabels() + ax1.xaxis.get_minorticklabels():
         tl.set_rotation(-45)
         tl.set_ha('left')
@@ -166,9 +247,12 @@ def timeseriesplot(left, right=None,
         if rmax is not None: y2max = rmax
         ax2.set_ylim( *scale_axis(rscale, y2min, y2max) )
 
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.95, bottom=0.16)
     if output:
         # output format will be auto-detected; see matplotlib manual.
-        fig.savefig(output)
+        fig.set_dpi(100)
+        fig.set_size_inches(12,6)
+        fig.savefig(output, bbox_inches='tight')
     else:
         plt.show()
 
@@ -263,6 +347,10 @@ def _optparse(args):
     p.add_option("-o", "--output", metavar="FILENAME", default=None,
             help="Save graph to a file named FILENAME (ex.'mygraph.png')." \
                  "Format is autodetected from extension.")
+    p.add_option("-m", "--movavg", "--moving-average", metavar="RANGE", default=0,
+            help="Draw moving average for all left-Y axis datapoints." \
+                 "Use RANGE number of data points when =>1, '100*RANGE%' of data points if 0<RANGE<1" \
+                 "or '-100/RANGE %' of them if RANGE < 0.")
 
     # FIXME: not implemented yet
     #p.add_option("-c", "--colnames", metavar="NAME1[,NAME2[,...]]",
@@ -306,7 +394,7 @@ def main(args):
             right_files = files[(idx+1):]
         elif len(files) == 2:
             left_files = [ files[0] ]
-            right_dataset = [ files[1] ]
+            right_files = [ files[1] ]
         else:
             left_files = files
             right_files = []
@@ -347,6 +435,7 @@ def main(args):
 
     timeseriesplot(left_dataset, right_dataset,
                 output=opts.output,
+                moving_average=float(opts.movavg),
                 llabel=left_label, rlabel=right_label, **kwarg)
 
 
