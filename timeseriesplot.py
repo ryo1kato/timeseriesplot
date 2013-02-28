@@ -61,9 +61,9 @@ class TimeSeriesData():
     def _to_datetime(self, datetime_string):
         # FIXME: need to think about TZ.
         try:
-            return datetime.fromtimestamp( float(datetime_string) )
+            return datetime.utcfromtimestamp( float(datetime_string) )
         except ValueError:
-            return dateutil.parser.parse(datetime_string, ignoretz=True)
+            return dateutil.parser.parse(datetime_string)
 
     def append(self, data, datecol=0, valcol=1):
         self._dates.append( self._to_datetime(data[datecol]) )
