@@ -61,9 +61,9 @@ class TimeSeriesData():
     def _to_datetime(self, datetime_string):
         # FIXME: need to think about TZ.
         try:
-            return datetime.utcfromtimestamp( float(datetime_string) )
+            return datetime.fromtimestamp( float(datetime_string) )
         except ValueError:
-            return dateutil.parser.parse(datetime_string)
+            return dateutil.parser.parse(datetime_string, ignoretz=True)
 
     def append(self, data, datecol=0, valcol=1):
         self._dates.append( self._to_datetime(data[datecol]) )
@@ -104,7 +104,8 @@ def dummy_data(name, time_interval=300, initval=1000, data_diff_max=100, days=7)
 def timeseriesplot(left, right=None,
                    llabel='', lstyle='', lscale=1, lmin=None, lmax=None,
                    rlabel='', rstyle='-', rscale=1, rmin=None, rmax=None,
-                   output=None, moving_average=0, moving_average_style='-'):
+                   output=None, geo=(800,600),
+                   moving_average=0, moving_average_style='-'):
     """moving_average: if 0, disable. N>0 indicates average over N data points.
     negative N<0 value indicates moving average over X data points where
     X = len(dataset)/-N. For example, if moving_average=-20, average is taken for
@@ -122,11 +123,18 @@ def timeseriesplot(left, right=None,
             dataset = [dataset]
         for d in dataset:
             if marker == 'AUTO': mymarker = next(markers)
-            if linestyle not in ['', ' ']:
+            if linestyle not in ['', ' ', 'bar']:
                 # if data-points are connected, need to sort by date
                 # (otherwise, line can go left and right)
                 d.sort_by_date()
-            axis.plot_date( d.dates(), d.values(), label=d.name(),
+            if linestyle == 'bar':
+                # 1 width = 1 days
+                barcolor=next(colors)
+                axis.bar( d.dates(), d.values(), width=0.005,
+                        color=barcolor, edgecolor=barcolor)
+                axis.xaxis_date()
+            else:
+                axis.plot_date( d.dates(), d.values(), label=d.name(),
                             linestyle=linestyle, marker=mymarker, color=next(colors))
             if movavg != 0 and len(d.values()) > 2:
                 if movavg >= 1: # just a number of data points
@@ -179,7 +187,7 @@ def timeseriesplot(left, right=None,
     ax1.set_ylabel(llabel)
     ax1.yaxis.grid(True, color='#8899dd')
 
-    majloc = dates.AutoDateLocator( interval_multiples=True ) 
+    majloc = dates.AutoDateLocator( interval_multiples=True )
     majfmt = dates.AutoDateFormatter( majloc )
     majfmt.scaled = {
        365.0    : '%Y',
@@ -251,7 +259,7 @@ def timeseriesplot(left, right=None,
     if output:
         # output format will be auto-detected; see matplotlib manual.
         fig.set_dpi(100)
-        fig.set_size_inches(12,6)
+        fig.set_size_inches(24,12)
         fig.savefig(output, bbox_inches='tight')
     else:
         plt.show()
@@ -275,7 +283,7 @@ def load_csv(infile, colname_prefix='', colnames=None):
     (and also used to define number of columns)
     """
 
-    re_number = re.compile('\d+(.\d+)?')
+    re_number = re.compile('^\d+(.\d+)?$')
 
     if infile == '-':
         fileio = sys.stdin
@@ -334,6 +342,7 @@ def _optparse(args):
       --lstyle, --rstyle=STYLE
           Line styles for left- and right-Y axis plot.
           Use matplotlib notation (defaults: ''(no line) and '-')
+          Adittional 'bar' option for bar plot is also supported.
       --lmin, --lmax, --lscale, --rmin, --rmax, --rscale=VALUE
           Min, max values and scaling factor for left- and right-Y axis.
     """)

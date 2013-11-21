@@ -12,7 +12,7 @@ ABOUT
 MODULE USAGE EXAMPLE
     Construct TimeSeriesData object and give it to
     timeseriesplot() function.
-    
+
     Sample1: create empty dataset and then add data one by one
     as read CSV input file and show graph in matplotlib GUI.
         |#!/usr/bin/env python
@@ -58,6 +58,7 @@ COMMANDLINE USAGE EXAMPLE
 TODO
     * Unit testing.
     * Timezone handling
+    * Fix the support for bar graph.
     * Implement --colnames option
     * Implement --right option (?)
 
