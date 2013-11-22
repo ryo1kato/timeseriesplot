@@ -130,7 +130,7 @@ def timeseriesplot(left, right=None,
             if linestyle == 'bar':
                 # 1 width = 1 days
                 barcolor=next(colors)
-                axis.bar( d.dates(), d.values(), width=0.005,
+                axis.bar( d.dates(), d.values(), width=0.005, label=d.name(),
                         color=barcolor, edgecolor=barcolor)
                 axis.xaxis_date()
             else:
