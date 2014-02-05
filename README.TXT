@@ -54,13 +54,16 @@ COMMANDLINE USAGE EXAMPLE
         plot (all) data in 'file1.csv' and 'file2.csv' on left,
         file3.csv to right-Y axis.
 
+    $ ./timeseriesplot.py --heatmap --heatmap-bins=100 file1.csv file2.csv
+        plot (all) data in 'file1.csv' as heatmap with 100bins,
+        and plot 'file2.csv' on right-Y axis
+
 
 TODO
     * Unit testing.
     * Timezone handling
     * Fix the support for bar graph.
     * Implement --colnames option
-    * Implement --right option (?)
 
 LICENSE
     This script is free to use and/or redistribute under MIT license.

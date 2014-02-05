@@ -35,6 +35,7 @@ from matplotlib import dates, ticker, mlab
 from datetime import datetime, date, timedelta
 from itertools import cycle
 import dateutil.parser
+import calendar
 import re
 import os
 
@@ -69,6 +70,8 @@ class TimeSeriesData():
         self._dates.append( self._to_datetime(data[datecol]) )
         self._values.append( float(data[valcol]) )
 
+    def timestamps(self): return [ calendar.timegm(x.timetuple()) for x in self._dates ]
+    def ordinals(self): return [ dates.date2num(x) for x in self._dates ]
     def dates(self): return self._dates
     def values(self): return self._values
     def name(self): return self._name
@@ -105,13 +108,15 @@ def timeseriesplot(left, right=None,
                    llabel='', lstyle='', lscale=1, lmin=None, lmax=None,
                    rlabel='', rstyle='-', rscale=1, rmin=None, rmax=None,
                    output=None, geo=(800,600),
+                   heatmap=False,
+                   heatmap_bins=50,
                    moving_average=0, moving_average_style='-'):
     """moving_average: if 0, disable. N>0 indicates average over N data points.
     negative N<0 value indicates moving average over X data points where
     X = len(dataset)/-N. For example, if moving_average=-20, average is taken for
     1/20 = 5% of data points.
     """
-    colors=cycle(['b', 'r', 'c', 'm', 'g', 'y', 'k'])
+    colors=cycle(['r', 'g', 'c', 'm', 'b', 'y', 'k'])
     markers=cycle(['.', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p',
                    '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_'])
 
@@ -162,11 +167,32 @@ def timeseriesplot(left, right=None,
         ## Scale with minval as pivot
         return (minval, maxval/scale)
 
+
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
 
-    dateplot_data(ax1, left, linestyle=lstyle,
-                  movavg=moving_average, movavg_style=moving_average_style)
+    ####################################
+    ##
+    ## Heatmap
+    ##
+    if heatmap:
+        if isinstance(left,list):
+            heatmapdata = left[0]
+        else:
+            heatmapdata = left
+        x = heatmapdata.ordinals()
+        y = heatmapdata.values()
+        heatmap, xedges, yedges = np.histogram2d(y, x, bins=heatmap_bins)
+
+        # to make colorbar work with plt.tight_layout()
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        hm = plt.pcolor(yedges, xedges, heatmap)
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", "5%", pad="3%")
+        plt.colorbar(hm, cax=cax)
+    else:
+        dateplot_data(ax1, left, linestyle=lstyle,
+                      movavg=moving_average, movavg_style=moving_average_style)
 
     if right:
         # Default right axis is plot with solid line without marker.
@@ -255,7 +281,8 @@ def timeseriesplot(left, right=None,
         if rmax is not None: y2max = rmax
         ax2.set_ylim( *scale_axis(rscale, y2min, y2max) )
 
-    plt.subplots_adjust(left=0.1, right=0.9, top=0.95, bottom=0.16)
+    #plt.subplots_adjust(left=0.1, right=0.9, top=0.95, bottom=0.16)
+    plt.tight_layout()
     if output:
         # output format will be auto-detected; see matplotlib manual.
         fig.set_dpi(100)
@@ -365,6 +392,10 @@ def _optparse(args):
     #p.add_option("-c", "--colnames", metavar="NAME1[,NAME2[,...]]",
     #        help="Set names for each columns (when there's multiple files), "
     #             "names are assigned from leftmost column of leftmost file in argument.")
+    p.add_option('--heatmap', '--hm', action='store_true',
+                 default=False,  help='Show heatmap instead of scatter plot')
+    p.add_option('--heatmap-bins', '--bin', '--bins', type=int, default=50,
+                 help='number of heatmap bins')
 
     p.add_option("--llabel", default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rlabel", default=None,  help=optparse.SUPPRESS_HELP)
@@ -376,13 +407,6 @@ def _optparse(args):
     p.add_option("--lmax",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rmin",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rmax",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
-
-    # FIXME: not implemented yet.
-    # p.add_option("-r", "--right", metavar='[FILENUM[,...]][/COLNUM[...]]', default=None,
-    #     help="Plot data from FILENAME and/or COLUMN to right axis" \
-    #     "'--right=1' will plot all columns from the 1st file in argument to right axis," \
-    #     "'--right=/1,2,4' will plot columns 2 and 4 of all the files to right"
-    #     "You can specify multiple of this option for complex combinations." )
 
     return p.parse_args(args)
 
@@ -444,6 +468,8 @@ def main(args):
 
     timeseriesplot(left_dataset, right_dataset,
                 output=opts.output,
+                heatmap=opts.heatmap,
+                heatmap_bins=opts.heatmap_bins,
                 moving_average=float(opts.movavg),
                 llabel=left_label, rlabel=right_label, **kwarg)
 
