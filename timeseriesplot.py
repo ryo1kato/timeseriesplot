@@ -110,6 +110,7 @@ def dummy_data(name, time_interval=300, initval=1000, data_diff_max=100, days=7)
 def timeseriesplot(left, right=None,
                    llabel='', lstyle='', lscale=1, lmin=None, lmax=None,
                    rlabel='', rstyle='-', rscale=1, rmin=None, rmax=None,
+                   lmarker='AUTO', rmarker=None,
                    output=None, geo=(800,600),
                    heatmap=False,
                    heatmap_bins=50,
@@ -121,7 +122,7 @@ def timeseriesplot(left, right=None,
     1/20 = 5% of data points.
     """
     colors=cycle(['r', 'g', 'c', 'm', 'b', 'y', 'k'])
-    markers=cycle(['.', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p',
+    auto_markers=cycle(['.', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p',
                    '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_'])
 
     def dateplot_data(axis, dataset, linestyle='', marker='AUTO',
@@ -131,7 +132,7 @@ def timeseriesplot(left, right=None,
         if not isinstance(dataset,list):
             dataset = [dataset]
         for d in dataset:
-            if marker == 'AUTO': mymarker = next(markers)
+            if marker == 'AUTO': mymarker = next(auto_markers)
             if linestyle not in ['', ' ', 'bar']:
                 # if data-points are connected, need to sort by date
                 # (otherwise, line can go left and right)
@@ -196,12 +197,15 @@ def timeseriesplot(left, right=None,
         plt.colorbar(hm, cax=cax)
     else:
         dateplot_data(ax1, left, linestyle=lstyle,
-                      movavg=moving_average, movavg_style=moving_average_style)
+                      movavg=moving_average, movavg_style=moving_average_style,
+                      marker=lmarker)
 
     if right:
         # Default right axis is plot with solid line without marker.
         # If no-line style specified, set AUTO marker (like left).
-        if rstyle in [ '-', '--', '-.', ':' ]:
+        if rmarker is not None:
+            marker=rmarker
+        elif rstyle in [ '-', '--', '-.', ':' ]:
             marker=' '
         else:
             marker='AUTO'
@@ -378,6 +382,9 @@ def _optparse(args):
           Adittional 'bar' option for bar plot is also supported.
       --lmin, --lmax, --lscale, --rmin, --rmax, --rscale=VALUE
           Min, max values and scaling factor for left- and right-Y axis.
+      --marker=MARKER
+          Set data point marker to MARKER (default is to assign different
+          markers to each of data set automatically)
     """)
     class MyParser(optparse.OptionParser):
         """A parser NOT to strip epilog"""
@@ -415,6 +422,8 @@ def _optparse(args):
     p.add_option("--lmax",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rmin",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rmax",   type=float, default=None,  help=optparse.SUPPRESS_HELP)
+    p.add_option("--lmarker", default='AUTO', help=optparse.SUPPRESS_HELP)
+    p.add_option("--rmarker", default=None,   help=optparse.SUPPRESS_HELP)
 
     return p.parse_args(args)
 
@@ -472,7 +481,9 @@ def main(args):
     optsdict = vars(opts)
     kwarg = { kwd: optsdict[kwd] for kwd in
                 [ "lstyle", "rstyle",
-                  "lscale", "rscale", "lmin", "lmax",  "rmin",  "rmax"] }
+                  "lscale", "rscale",
+                  "lmin", "lmax",  "rmin",  "rmax",
+                  "lmarker", "rmarker"] }
 
     timeseriesplot(left_dataset, right_dataset,
                 output=opts.output,
