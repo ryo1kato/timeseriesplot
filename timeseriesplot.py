@@ -5,6 +5,9 @@
 #   - Only accepts CSV data when used from commandline.
 #   - See '--help' for Useage from command line.
 #
+# LICENSE
+#    This script is free to use and/or redistribute under MIT license.
+#
 # TODO:
 #   * moving average
 #   * Minor tick labels overlap major ones when using AutoDateMinorLocator

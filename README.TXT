@@ -1,5 +1,7 @@
 timeseriesplot.py - a matplotlib wrapper library to plot time-series data.
 
+                                             Ryoichi KATO <ryo1kato@gmail.com>
+
 ABOUT
     An easy-to-use Python module to plot time-series data.
     Comes with neat commandline interface as well.
