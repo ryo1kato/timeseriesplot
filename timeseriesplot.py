@@ -110,7 +110,8 @@ def timeseriesplot(left, right=None,
                    output=None, geo=(800,600),
                    heatmap=False,
                    heatmap_bins=50,
-                   moving_average=0, moving_average_style='-'):
+                   moving_average=0, moving_average_style='-',
+                   legend=True):
     """moving_average: if 0, disable. N>0 indicates average over N data points.
     negative N<0 value indicates moving average over X data points where
     X = len(dataset)/-N. For example, if moving_average=-20, average is taken for
@@ -205,7 +206,8 @@ def timeseriesplot(left, right=None,
         ax2.yaxis.grid(False)
         ax2.set_ylabel(rlabel)
         dateplot_data(ax2, right, linestyle=rstyle, marker=marker)
-        ax2.legend(loc=1) # upper right
+        if legend:
+            ax2.legend(loc=1) # upper right
         ax2.tick_params(axis='both', which='both', labelsize=9)
 
     # Grid/Locator settings. These must be after *ALL* axis.plot_date() call; otherwise
@@ -260,7 +262,8 @@ def timeseriesplot(left, right=None,
     ax1.tick_params(axis='both', which='both', labelsize=9)
 
     # X legend
-    ax1.legend(loc=2, numpoints=1) # on upper left, must be after ax1.plot_date()
+    if legend:
+        ax1.legend(loc=2, numpoints=1) # on upper left, must be after ax1.plot_date()
     for tl in ax1.xaxis.get_majorticklabels() + ax1.xaxis.get_minorticklabels():
         tl.set_rotation(-45)
         tl.set_ha('left')
@@ -396,6 +399,8 @@ def _optparse(args):
                  default=False,  help='Show heatmap instead of scatter plot')
     p.add_option('--heatmap-bins', '--bin', '--bins', type=int, default=50,
                  help='number of heatmap bins')
+    p.add_option("--no-legend", "-L", default=False, action='store_true',
+                 help="Do not draw legend.")
 
     p.add_option("--llabel", default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rlabel", default=None,  help=optparse.SUPPRESS_HELP)
@@ -471,7 +476,9 @@ def main(args):
                 heatmap=opts.heatmap,
                 heatmap_bins=opts.heatmap_bins,
                 moving_average=float(opts.movavg),
-                llabel=left_label, rlabel=right_label, **kwarg)
+                llabel=left_label, rlabel=right_label,
+                legend=(not opts.no_legend),
+                **kwarg)
 
 
 if __name__ == '__main__':
