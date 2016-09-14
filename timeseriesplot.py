@@ -296,7 +296,7 @@ def timeseriesplot(left, right=None,
     if output:
         # output format will be auto-detected; see matplotlib manual.
         fig.set_dpi(100)
-        fig.set_size_inches(24,12)
+        fig.set_size_inches(geo[0]/100,geo[1]/100)
         fig.savefig(output, bbox_inches='tight')
     else:
         plt.show()
@@ -346,9 +346,6 @@ def load_csv(infile, colname_prefix='', colnames=None):
         nrCol = len( colnames )
         datalines = datalines[1:]
 
-    if colname_prefix:
-        colnames = [ colname_prefix + name for name in colnames ]
-
     dataset_list = [ TimeSeriesData(name=name) for name in colnames ]
 
     for l in datalines:
@@ -396,6 +393,8 @@ def _optparse(args):
     p.add_option("-o", "--output", metavar="FILENAME", default=None,
             help="Save graph to a file named FILENAME (ex.'mygraph.png')." \
                  "Format is autodetected from extension.")
+    p.add_option("-g", "--geometry", metavar="WIDTHxHEIGHT", default="800x600",
+            help="Output image size in pixel. (use with --output)")
     p.add_option("-m", "--movavg", "--moving-average", metavar="RANGE", default=0,
             help="Draw moving average for all left-Y axis datapoints." \
                  "Use RANGE number of data points when =>1, '100*RANGE%' of data points if 0<RANGE<1" \
@@ -430,6 +429,13 @@ def _optparse(args):
 
 def main(args):
     (opts, files) = _optparse(args)
+
+    width = 800
+    height = 400
+    try:
+        (width, hight) = [ int(i) for i in opts.geometry.split('x') ]
+    except ValueError:
+        raise TSPlotException("invalid --geometry option: %s" % opts.geometry)
 
     left_dataset = []
     left_label = '(No name)'
@@ -486,7 +492,7 @@ def main(args):
                   "lmarker", "rmarker"] }
 
     timeseriesplot(left_dataset, right_dataset,
-                output=opts.output,
+                output=opts.output, geo=(width, height),
                 heatmap=opts.heatmap,
                 heatmap_bins=opts.heatmap_bins,
                 moving_average=float(opts.movavg),
