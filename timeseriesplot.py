@@ -225,11 +225,12 @@ def timeseriesplot(left, right=None,
     majloc = dates.AutoDateLocator( interval_multiples=True )
     majfmt = dates.AutoDateFormatter( majloc )
     majfmt.scaled = {
-       365.0    : '%Y',
-       30.      : '%b %Y',
-       1.0      : '%Y-%m-%d(%a)',
-       1./24.   : '%d(%a) %H:%M',
-       1./1440. : '%H:%M:%S',
+       365.0        : '%Y',
+       30.          : '%b %Y',
+       1.0          : '%Y-%m-%d(%a)',
+       1./24.       : '%d(%a) %H:%M',
+       1./1440.     : '%d(%a) %H:%M:%S',
+       1./(1440*60) : '%H:%M:%S.%f',
        }
 
     class AutoDateMinorLocator(dates.AutoDateLocator):
