@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 #
 # timeseriesplot.py - a matplotlib wrapper library to plot time-series data.
 #
@@ -86,8 +86,8 @@ class TimeSeriesData():
         if len(self._values) != 0:
             sorted_pair = sorted(zip(self._dates, self._values), key=lambda x: x[0])
             #int((x[0]-y[0]).total_seconds()) )
-            self._dates = zip(*sorted_pair)[0]
-            self._values = zip(*sorted_pair)[1]
+            self._dates = list(zip(*sorted_pair))[0]
+            self._values = list(zip(*sorted_pair))[1]
 
 
 def dummy_data(name, time_interval=300, initval=1000, data_diff_max=100, days=7):
@@ -340,7 +340,7 @@ def load_csv(infile, colname_prefix='', colnames=None):
     nrCol = 2 # this is minimum number of cols we need
     if re_number.match(line1_cols[1]):
         nrCol = len( datalines[0].split(',') )
-        colnames = [ colname_prefix + "col-%d"%i for i in xrange(1, nrCol) ]
+        colnames = [ colname_prefix + "col-%d"%i for i in range(1, nrCol) ]
     else:
         if not colnames:
             colnames = line1_cols[1:] # the first column is time (X-Axis)
@@ -354,7 +354,7 @@ def load_csv(infile, colname_prefix='', colnames=None):
         time = cols[0]
         data = cols[1:]
 
-        for ds, datum in map(None, dataset_list, data):
+        for ds, datum in zip(dataset_list, data):
             if ds and datum:
                 ds.append( (time,datum) )
 
