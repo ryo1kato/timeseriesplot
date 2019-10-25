@@ -34,7 +34,7 @@ USAGE = """%prog [OPTIONS] CSV_FILE[...] [/ CSV_FILE[...]]
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import dates, ticker, mlab
+from matplotlib import dates, ticker, mlab, colors
 from datetime import datetime, date, timedelta
 from itertools import cycle
 import dateutil.parser
@@ -114,6 +114,7 @@ def timeseriesplot(left, right=None,
                    output=None, geo=(800,600),
                    heatmap=False,
                    heatmap_bins=50,
+                   heatmap_log=False,
                    moving_average=0, moving_average_style='-',
                    legend=True):
     """moving_average: if 0, disable. N>0 indicates average over N data points.
@@ -121,7 +122,7 @@ def timeseriesplot(left, right=None,
     X = len(dataset)/-N. For example, if moving_average=-20, average is taken for
     1/20 = 5% of data points.
     """
-    colors=cycle(['r', 'g', 'c', 'm', 'b', 'y', 'k'])
+    colorsymbols=cycle(['r', 'g', 'c', 'm', 'b', 'y', 'k'])
     auto_markers=cycle(['.', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', 's', 'p',
                    '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_'])
 
@@ -139,13 +140,13 @@ def timeseriesplot(left, right=None,
                 d.sort_by_date()
             if linestyle == 'bar':
                 # 1 width = 1 days
-                barcolor=next(colors)
+                barcolor=next(colorsymbols)
                 axis.bar( d.dates(), d.values(), width=0.005, label=d.name(),
                         color=barcolor, edgecolor=barcolor)
                 axis.xaxis_date()
             else:
                 axis.plot_date( d.dates(), d.values(), label=d.name(),
-                            linestyle=linestyle, marker=mymarker, color=next(colors))
+                            linestyle=linestyle, marker=mymarker, color=next(colorsymbols))
             if movavg != 0 and len(d.values()) > 2:
                 if movavg >= 1: # just a number of data points
                     weight = int(movavg) 
@@ -159,7 +160,7 @@ def timeseriesplot(left, right=None,
                 label = "%s (moving avg for %d datapoints)" % (d.name(),weight)
                 axis.plot_date( d.dates()[weight-1:], ma, label=label,
                             linestyle=movavg_style,
-                            marker=' ', color=next(colors))
+                            marker=' ', color=next(colorsymbols))
 
 
     def scale_axis(scale, minval, maxval):
@@ -191,7 +192,11 @@ def timeseriesplot(left, right=None,
 
         # to make colorbar work with plt.tight_layout()
         from mpl_toolkits.axes_grid1 import make_axes_locatable
-        hm = plt.pcolor(yedges, xedges, heatmap)
+        if heatmap_log:
+            norm = colors.LogNorm(vmin=1, vmax=heatmap.max())
+        else:
+            norm = None
+        hm = plt.pcolor(yedges, xedges, heatmap, norm=norm)
         divider = make_axes_locatable(plt.gca())
         cax = divider.append_axes("right", "5%", pad="3%")
         plt.colorbar(hm, cax=cax)
@@ -409,8 +414,10 @@ def _optparse(args):
                  default=False,  help='Show heatmap instead of scatter plot')
     p.add_option('--heatmap-bins', '--bin', '--bins', type=int, default=50,
                  help='number of heatmap bins')
+    p.add_option('--heatmap-log', '--log', action='store_true', default=False,
+                help='Use logarithmic color mapping instead of linear')
     p.add_option("--no-legend", "-L", default=False, action='store_true',
-                 help="Do not draw legend.")
+                help="Do not draw legend.")
 
     p.add_option("--llabel", default=None,  help=optparse.SUPPRESS_HELP)
     p.add_option("--rlabel", default=None,  help=optparse.SUPPRESS_HELP)
@@ -496,6 +503,7 @@ def main(args):
                 output=opts.output, geo=(width, height),
                 heatmap=opts.heatmap,
                 heatmap_bins=opts.heatmap_bins,
+                heatmap_log=opts.heatmap_log,
                 moving_average=float(opts.movavg),
                 llabel=left_label, rlabel=right_label,
                 legend=(not opts.no_legend),
